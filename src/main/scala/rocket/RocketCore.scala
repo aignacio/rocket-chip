@@ -932,11 +932,11 @@ class RVFIMonitor(implicit p: Parameters) extends BlackBox {
     io.rvfi_mem_wdata := content.map(_.mem_wdata).asUInt
 
     io.rvfi_csr_mcycle_rdata := content.map(_.mcycle).asUInt
-    io.rvfi_csr_mcycle_rmask := (-1).S.asUInt
+    io.rvfi_csr_mcycle_rmask := SInt(-1, width=xlen).asUInt
     io.rvfi_csr_mcycle_wdata := content.map(_.mcycle_wdata).asUInt
     io.rvfi_csr_mcycle_wmask := content.map(_.mcycle_wmask).asUInt
     io.rvfi_csr_instret_rdata := content.map(_.retire).asUInt
-    io.rvfi_csr_instret_rmask := (-1).S.asUInt
+    io.rvfi_csr_instret_rmask := SInt(-1, width=log2Up(1+retireWidth)).asUInt
     io.rvfi_csr_instret_wdata := content.map(_.retire_wdata).asUInt
     io.rvfi_csr_instret_wmask := content.map(_.retire_wmask).asUInt
   }
@@ -1032,14 +1032,14 @@ class RocketWithRVFI(implicit p: Parameters) extends Rocket()(p) {
 
   inst_commit.mcycle := csr.io.time
   inst_commit.mcycle_wdata := csr.io.rw.wdata
-  inst_commit.mcycle_wmask := Mux(csr.io.rw.cmd===CSR.W && csr.io.rw.addr==CSRs.mcycle, (-1).S.asUInt, UInt(0))
+  inst_commit.mcycle_wmask := Mux(csr.io.rw.cmd===CSR.W && csr.io.rw.addr===CSRs.mcycle, SInt(-1, width=p(XLen)).asUInt, UInt(0))
   inst_commit.retire := csr.io.retire
   inst_commit.retire_wdata := csr.io.rw.wdata
-  inst_commit.retire_wmask := Mux(csr.io.rw.cmd===CSR.W && csr.io.rw.addr==CSRs.instret, (-1).S.asUInt, UInt(0))
+  inst_commit.retire_wmask := Mux(csr.io.rw.cmd===CSR.W && csr.io.rw.addr===CSRs.instret, SInt(-1, width=log2Up(1+retireWidth)).asUInt, UInt(0, width=log2Up(1+retireWidth)))
 
   val mem_wvalid = Reg(next=Reg(next=io.dmem.req.valid)) && !Reg(next=io.dmem.s1_kill) && !io.dmem.s2_nack && Reg(next=Reg(next=isWrite(io.dmem.req.bits.cmd)))
   when(mem_wvalid) {
-    inst_commit.mem_wmask := SInt(-1).asUInt
+    inst_commit.mem_wmask := SInt(-1, width=xlen/8).asUInt
     switch(Reg(next=Reg(next=io.dmem.req.bits.typ))) {
       is(MT_B) {
         inst_commit.mem_wmask := UInt("b1")
